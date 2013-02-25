@@ -1,0 +1,706 @@
+
+@(displayId: String, wsAddress: String, size: String)
+
+@main("Moment Machine") {
+
+		@if(size == "small"){
+			<link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/mainSmall.css")">
+		}
+		@if(size == "big"){
+			<link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/mainBig.css")">
+		}
+		@if(size == "fullscreen"){
+			<link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/mainFullscreen.css")">
+		}
+		@if(size == "portrait"){
+			<link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/mainPortrait.css")">
+		}
+		@if(displayId=="5") {
+		<style>
+			body {
+				background: url('@routes.Assets.at("stylesheets/zavesa1.png")');
+				}
+		</style>
+		}
+		<script type="text/javascript" src="@routes.Assets.at("javascripts/jquery-1.8.0.min.js")"></script>
+		<script type="text/javascript" src="@routes.Assets.at("javascripts/jquery.timeago.js")"></script>
+		<script type="text/javascript" src="@routes.Assets.at("javascripts/channel.js")"></script>
+	
+	<div id="cameraLayer">
+		<div id="imgIdDiv" style="display:none;">
+			<img src="" id="imgId" height="500" width="375"></img>
+		</div>
+		
+		<div id="photoCapture" style="display:inline-block;" onclick="changeFilter()">
+			<canvas id="canvasID"></canvas>
+		</div>
+		<div id="cameraFeed" style="display:none;">
+			<video autoplay="autoplay" id="localVideo"></video>
+			<!--  <video autoplay="autoplay" id="remoteVideo"></video> -->
+			<!-- <input id="start_btn" type="image" value="Take Snapshot" class="unselected" onClick="take_snapshot()" src="@routes.Assets.at("buttons/Take_picture.png")"> -->
+		</div>	
+			<!-- <embed src="@routes.Assets.at("javascripts/shutter.mp3")" autostart=false width=1 height=1 
+			enablejavascript="true" id="soundObj"/> -->
+			<audio src="@routes.Assets.at("javascripts/shutter.mp3")" id="audioID"></audio>
+	</div>
+	<div id="filtersButton" onclick="changeFilter()" ondragend="changeFilter()" style="position: absolute;
+            left: 10px; top: 660px;">
+			<img src="@routes.Assets.at("buttons/element-16.png")" id="chageFilter"></img>
+	</div>
+	<div id="photoButtonDiv">
+		
+		<div id="captureButton" onclick="if (!touch) take_snapshot();" ondragend="if (!touch) take_snapshot()" style="display: block;">
+			<img src="@routes.Assets.at("buttons/click.png")" id="shutterImg"></img>
+		</div>
+		
+		<!--  <div id="handDiv" onclick="if (!touch) take_snapshot()" ondragend="if (!touch) take_snapshot()" style="display: block;">
+			<img src="@routes.Assets.at("buttons/hand1.png")" id="handImg"></img>
+		</div>
+		-->
+		<div id="timerTillShot" value="" onclick="if (!touch) take_snapshot();" ondragend="if (!touch) take_snapshot()">Click
+		</div>
+		
+		<div id="fbButton" onclick="saveTheImage(2)" ondragend="saveTheImage(2)" style="display: none;">
+			<img src="@routes.Assets.at("buttons/facebook_logo.png")" id="fbImg"></img>
+		</div>
+		
+		<div id="yesButton" onclick="saveTheImage(1)" ondragend="saveTheImage(1)" style="display: none;">
+			<img src="@routes.Assets.at("buttons/element-17.png")" id="yesImg"></img>
+		</div>
+		
+		<div id="noButton" onclick="clearAndRefresh()" ondragend="clearAndRefresh()" style="display: none;">
+			<img src="@routes.Assets.at("buttons/element-18.png")" id="noImg"></img>
+		</div>
+		
+		<div id="countdownTimer" style="display: none;"></div>
+	</div>
+	
+	<script type="text/javascript">
+
+	//var date1 = new Date();
+	//alert('Year: '+date1.getFullYear()+', month: '+date1.getMonth()+', day: '+date1.getDate()+', hour: '+date1.getHours()+', minute: '+date1.getMinutes());
+
+	var touch = false;
+	//------------	
+	//---- WS ----
+	//------------
+	var WS = WebSocket;
+	var wsUri = "@wsAddress";
+	var iHeight = 240;
+	var iWidth = 320;
+	//var imgArray = new Array();
+	//var locArray = new Array();
+	var momentArray = new Array();
+	
+	websocket = new WS(wsUri); 
+	var peerConn = null;
+	console.log("display id: "+@displayId+" ,size: "+"@size");
+	
+	websocket.onopen = function(evt) { 
+		console.log("CONNECTED"); 
+		var hi = JSON.stringify
+		({
+			"kind":"appReady",
+			"displayID": @displayId,
+			"size": "@size"
+		});
+		websocket.send(hi);
+	}; //websocket.onopen
+
+	websocket.onclose = function(evt) { 
+		console.log("DISCONNECTED");
+		var bye = JSON.stringify
+		({
+			"kind":"appClose",
+			"displayID": @displayId,
+			"size": "@size"
+		});
+		websocket.send(bye);
+	}; //websocket.onclose
+
+	websocket.onmessage = function(evt) {
+		var response = jQuery.parseJSON(evt.data);
+		
+		if(response.kind == "request"){
+			//TODO - do something here when a message from the app server arrives
+		}//if
+		
+		//Hello World message sent from the app server
+		if(response.kind == "imageList"){
+			//$('#helloWorldBox').text(response.urls);
+			for (i=0; i<response.urls.length;i++) {
+				//imgArray[i] = response.urls[i].fileName;
+				//locArray[i] = response.urls[i].location;
+				
+				var obj = {
+				        fileName: response.urls[i].fileName,
+				        location: response.urls[i].location,
+				        likes: response.urls[i].likes,
+				        //shares: response.urls[i].shares
+				    };
+				
+				momentArray[i]=obj;
+				
+				//var timeInfo=imgArray[i].split("-");
+				var timeInfo=momentArray[i].fileName.split("-");
+				//alert("Just the elements "+timeInfo[1]+", "+ timeInfo[2]+", "+ timeInfo[3]+", "+ timeInfo[4]+", "+ timeInfo[5]);
+				var month = parseInt(timeInfo[2]);
+				var hour = parseInt(timeInfo[4]);
+				var minute = parseInt(timeInfo[5]);
+				//alert("Just the elements "+timeInfo[1]+", "+ month+", "+ timeInfo[3]+", "+ hour+", "+ minute);
+				//alert(new Date(timeInfo[1], month, timeInfo[3], hour, minute));
+				//alert(new Date(timeInfo[1], timeInfo[2]-1, timeInfo[3], timeInfo[4]-1, timeInfo[5]+1));
+				var timeAgo = jQuery.timeago(new Date(timeInfo[1], month, timeInfo[3], hour, minute));
+				//$('#photoContainer').prepend('<div class="photoItem"><div class="img"><img src="http://pdnet.inf.unisi.ch/photobooth/images/'+imgArray[i]+'" height="'+iHeight+'" width="'+iWidth+'"></img><div class="timeAgo">Moment captured at '+locArray[i]+' '+timeAgo+'</div></div></div>');
+				$('#photoContainer').prepend('<div class="photoItem"><div class="img"><img src="http://pdnet.inf.unisi.ch/dphotobooth/images/'+momentArray[i].fileName+'" height="'+iHeight+'" width="'+iWidth+'"></img><div class="timeAgo">'+momentArray[i].location+' - '+timeAgo+'</div></div></div>');
+				
+			}
+		}//if
+		
+		//PhotoBooth message sent from the app server
+		if(response.kind == "newImage"){
+			//$('#helloWorldBox').text(response.urls);
+			var temp=response.fileName;
+				var timeInfo=temp.split("-");
+				var month = parseInt(timeInfo[2]);
+				var hour = parseInt(timeInfo[4]);
+				var minute = parseInt(timeInfo[5]);
+				//alert(new Date(timeInfo[1], timeInfo[2]-1, timeInfo[3], timeInfo[4]-1, timeInfo[5]));
+				var timeAgo = jQuery.timeago(new Date(timeInfo[1], month, timeInfo[3], hour, minute));
+				//alert(timeAgo);
+				
+				var obj = {
+				        fileName: response.fileName,
+				        location: response.location,
+				        likes: response.likes,
+				        //shares: response.shares
+				    };
+				
+				//imgArray.unshift(response.fileName);
+				//locArray.unshift(response.location);
+				momentArray.unshift(obj);
+			$('#photoContainer').prepend('<div class="photoItem"><div class="img"><img src="http://pdnet.inf.unisi.ch/dphotobooth/images/'+response.fileName+'" height="'+iHeight+'" width="'+iWidth+'"></img><div class="timeAgo">'+response.location+' - '+timeAgo+'</div></div></div>');
+		}//if
+		
+		//TODO - add other messages as needed
+			
+	}; //websocket.onmessage
+
+	websocket.onerror = function(evt) { 
+		console.log(evt.data); 
+	}; //websocket.onerror
+	
+	//---- WS
+
+	var takeActionTimer = false;
+	var counterInterval = false;
+	var count = 29;
+	
+	window.URL = window.URL || window.webkitURL;
+	navigator.getUserMedia  = navigator.getUserMedia || navigator.webkitGetUserMedia ||
+	                          navigator.mozGetUserMedia || navigator.msGetUserMedia;
+	
+	var localVideo = document.getElementById('localVideo');
+	//localVideo.addEventListener('click', changeFilter, false);
+	var remoteVideo = document.getElementById('remoteVideo');
+	var audio = document.getElementById('audioID');//document.getElementById('soundObj');
+	var canvas = document.getElementById('canvasID');
+	var ctx = canvas.getContext('2d');
+	var img = document.getElementById('imgId');
+	var localMediaStream = null;
+	var dataURL;
+	var snapshots = [];
+	
+	var idx = 0;
+	/* var filters = ['grayscale', 'sepia', 'blur', 'brightness', 'contrast', 'hue-rotate',
+          'hue-rotate2', 'hue-rotate3', 'saturate', 'invert', '']; */
+    //var filters = ['color', 'sepia', 'grey', 'invert', 'tint', 'brighten', 'strips', 'noise'];
+          var filters = ['color', 'sepia', 'grey', 'invert', 'tint', 'brighten', 'noise'];
+          
+	var counterScroll=0;
+	var step=290;
+	var maxHeight = 260*momentArray.length;
+	
+	// Not showing vendor prefixes or code that works cross-browser.
+	navigator.getUserMedia({video: true}, function(stream) {
+	  
+	  navigator.sayswho= (function(){
+		    var N= navigator.appName, ua= navigator.userAgent, tem;
+		    var M= ua.match(/(opera|chrome|safari|firefox|msie)\/?\s*(\.?\d+(\.\d+)*)/i);
+		    if(M && (tem= ua.match(/version\/([\.\d]+)/i))!= null) M[2]= tem[1];
+		    M= M? [M[1], M[2]]: [N, navigator.appVersion, '-?'];
+
+		    return M;
+		})();
+	  //alert('navigator.sayswho='+navigator.sayswho[0]);
+	  if (navigator.sayswho[0]=='Opera') {
+		  localVideo.src = stream;
+	  } else {
+		  localVideo.src = window.URL.createObjectURL(stream);
+	  }
+	  localMediaStream = stream;
+	}, onFailSoHard);	
+	//canvas.width=localVideo.videoWidth;
+	//canvas.height=localVideo.videoHeight;
+	
+	var cw = 500;
+	
+	var ch = 375;
+	canvas.width = cw;
+	canvas.height = ch;
+	
+	var filter = filters[idx++ % filters.length];
+
+	$(localVideo).on("play", function(){
+		//alert('In play');
+		draw(localVideo,ctx,cw,ch,filter);
+	});
+	
+	var onFailSoHard = function(e) {
+	    //console.log('Reeeejected!', e);
+		alert('Reeeejected!'+ e);
+	 };
+	 
+	function changeImage(index) {           
+	   //$("#start_btn").attr('src', "assets/buttons/"+index+".png");
+	   //if (index==0)  $("#photoButton").attr('value', 'Smile:-)');
+	   //else 
+		  //$("#captureButton").attr('value', index);
+		$("#timerTillShot").text(index);
+	}
+			
+	function take_snapshot() {
+		touch = true;
+		//$('#handDiv').attr('style','display: none');
+		$('#timerTillShot').attr('style','display: block');
+		setTimeout('changeImage(5)', 1000);
+		setTimeout('changeImage(4)', 2000);
+		setTimeout('changeImage(3)', 3000);
+		setTimeout('changeImage(2)', 4000);
+		setTimeout('changeImage(1)', 5000);
+		setTimeout('changeImage(":-)")', 6000); 
+		setTimeout('changeImage("")', 6500);
+		//setTimeout('webcam.snap()', 6500);
+		setTimeout('snapshot()', 6500); 
+	}
+	
+	function snapshot() {
+		if (localMediaStream) {
+			//alert('canvas.width= '+canvas.width+', canvas.height= '+canvas.height);
+			//ctx.scale(0.5,0.5);
+			//alert(effect);
+			img.height= ch;
+			img.width= cw;
+			//filter = "grey";
+			//var idata1 = ctx.getImageData(0,0,640,480);
+
+			//dataURL = canvas.toDataURL('image/jpeg');
+			//var  = filterdata(idata1,filter);
+			//ctx.putImageData(newdata,0,0);
+					
+			//dataURL = canvas.toDataURL('image/jpeg');
+		    //img.src = dataURL;
+
+		    dataURL = canvas.toDataURL('image/jpeg');
+		    img.src = dataURL;
+		    //document.getElementById('photoCapture').classList.add(effect);
+		    audio.play();
+		    $('#countdownTimer').text('30');
+			$('#countdownTimer').attr('style','display: inline-block');
+		    /* $('#yesButton').attr('style','display: inline-block; -webkit-animation-name: greenPulse;');
+		    $('#noButton').attr('style','display: inline-block'); */
+		    $('#fbButton').attr('style', 'display: inline-block;');
+		    $('#yesButton').attr('style', 'display: inline-block;');
+		    $('#noButton').attr('style', 'display: inline-block;');
+			$('#captureButton').attr('style','display: none');
+			$('#filtersButton').attr('style','display: none');
+			$('#photoCapture').attr('style','display: border');
+			counterInterval = setInterval('counter()', 1000);
+			//$('#cameraFeed').attr('style','display: none');
+			$('#imgIdDiv').attr('style','display: inline=block');
+			$('#photoCapture').attr('style','display: none');
+			//if (takeActionTimer!= false) clearTimeout(takeActionTimer);
+			takeActionTimer = setTimeout('refresh(0)', 31000);
+			var imageJSON = JSON.stringify
+			({
+				"kind":"imagetaken",
+				"displayID": @displayId
+			});
+			websocket.send(imageJSON);
+		    //setTimeout('changeImage("Take_picture")', 1500);
+		    //setTimeout('changeImage("Capture the moment!")', 1500);
+		    //document.getElementById("start_btn").setAttribute("class", "unselected");
+		  }
+	}
+	
+	/* function changeFilter(e) {
+		var el = e.target;
+		el.className = '';
+		effect = filters[idx++ % filters.length]; // loop through filters.
+		if (effect) {
+ 			el.classList.add(effect);
+		}
+	} */
+	
+	function changeFilter() {
+		
+		filter = filters[idx++ % filters.length]; // loop through filters.
+		clearTimeout(filterTimeout);
+		filterTimeout = setTimeout(draw,20,localVideo,ctx,cw,ch,filter);
+		//alert(filter);
+		var imageJSON = JSON.stringify
+		({
+			"kind":"changefilter",
+			"displayID": @displayId
+		});
+		websocket.send(imageJSON);
+		
+	}
+	  
+		function saveTheImage(type) {
+			touch = false;
+			refresh(1);
+			clearTimeout(takeActionTimer);
+			clearInterval(counterInterval);
+			count = 29;
+			$("#photoContainer").animate({ scrollTop: 0 }, "slow");
+			var date = new Date();
+			var month = date.getMonth();
+			var day = date.getDate();
+			var hours = date.getHours();
+			var minutes = date.getMinutes();
+			var seconds = date.getSeconds();
+			
+			/* if (month<10) month = '0'+month;
+			if (day<10) day = '0'+day;
+			if (hours<10) hours = '0'+hours;
+			if (minutes<10) minutes = '0'+minutes; */
+			
+			month = ("0" + month).slice(-2);
+			day = ("0" + day).slice(-2);
+			hours = ("0" + hours).slice(-2);
+			minutes = ("0" + minutes).slice(-2);
+			seconds = ("0" + seconds).slice(-2);
+			if (type == 1) {
+		    	var imageJSON = JSON.stringify
+				({
+					"kind":"saveimage",
+					"displayID": @displayId,
+					"image": dataURL,
+					"year": date.getFullYear(),
+					"month": month,
+					"day": day,
+					"hour": hours,
+					"minute": minutes,
+					"seconds": seconds
+				});
+			}
+			
+			if (type == 2) {
+		    	var imageJSON = JSON.stringify
+				({
+					"kind":"savefacebook",
+					"displayID": @displayId,
+					"image": dataURL,
+					"year": date.getFullYear(),
+					"month": month,
+					"day": day,
+					"hour": hours,
+					"minute": minutes,
+					"seconds": seconds
+				});
+			}
+			
+			websocket.send(imageJSON);
+			snapshots.unshift(canvas);
+			//touchDetected = true;
+			counterScroll=0;
+		}
+		
+		function refresh(type) {
+			touch = false;
+			//document.getElementById('photoCapture').classList.remove();
+			//changeImage("Capture the moment!");
+			//$('#handDiv').attr('style','display: block');
+			//$('#filtersButton').attr('style','display: border; position: relative; right: 220px; top: 50px;');
+			$('#filtersButton').attr('style','display: border; position: absolute; left: 10px; top: 660px;');
+			$('#fbButton').attr('style', 'display: none;');
+			$('#yesButton').attr('style', 'display: none;');
+			$('#noButton').attr('style', 'display: none;');
+			/* $('#yesButton').attr('style','display: none; -webkit-animation-name: greenPulse;');
+			$('#noButton').attr('style','display: none'); */
+			$('#captureButton').attr('style','display: border');
+			$('#imgIdDiv').attr('style','display: none');
+			$('#photoCapture').attr('style','display: border');
+			$('#countdownTimer').attr('style','display: none');
+			$("#timerTillShot").text("Click");
+			if (type == 0) {
+				var imageJSON = JSON.stringify
+				({
+					"kind":"runoutoftime",
+					"displayID": @displayId
+				});
+				websocket.send(imageJSON);
+			}
+		}
+		
+		function clearAndRefresh() {
+			refresh(1); 
+			clearTimeout(takeActionTimer); 
+			clearInterval(counterInterval);
+			count = 29;
+			var imageJSON = JSON.stringify
+			({
+				"kind":"imagediscarded",
+				"displayID": @displayId
+			});
+			websocket.send(imageJSON);
+		}
+		
+		function counter()
+		{
+			//alert('IN');
+		  if (count < 0)
+		  {
+		     clearInterval(counterInterval);
+		     count = 29;
+		     $('#countdownTimer').attr('style','display: none');
+		     $('#countdownTimer').text("");
+		     //counter ended, do something here
+		  } else {
+			  $('#countdownTimer').text(count);
+			  count=count-1;
+		  }
+
+		  //Do code for showing the number of seconds here
+
+		}
+		
+		//video.addEventListener('click', snapshot, false);
+		
+		function goToByScroll(divContext){
+			//alert('step '+step+', counterScroll '+counterScroll);
+			maxHeight = 270*(momentArray.length);
+		     if (divContext=='down' && counterScroll<maxHeight) {
+			     	counterScroll +=step;
+			 	$("#photoContainer").animate({ scrollTop: counterScroll+"px" }, "slow");
+			 	 var imageJSON = JSON.stringify
+					({
+						"kind":"scrolldown",
+						"displayID": @displayId
+					});
+					websocket.send(imageJSON);
+		     } else if (divContext=='up' && counterScroll>0) {
+		    	 counterScroll -=step;
+				 $("#photoContainer").animate({ scrollTop: counterScroll+"px" }, "slow");
+				 var imageJSON = JSON.stringify
+					({
+						"kind":"scrollup",
+						"displayID": @displayId
+					});
+					websocket.send(imageJSON);
+			 }
+		}
+		
+//video filters
+		var newdata;
+		function filterdata(idata,type) {
+		var data = idata.data;
+		switch(type){
+			case "grey":
+				//alert('in grey');
+				for(var i = 0; i < data.length; i+=4) {
+					var r = data[i];
+					var g = data[i+1];
+					var b = data[i+2];
+					var brightness = parseInt((r + g + b) / 3);
+					data[i] = brightness;
+					data[i+1] = brightness;
+					data[i+2] = brightness;
+				}
+
+				idata.data = data;
+				//ctx.putImageData(idata,0,0);
+				//ctx.drawImage(localVideo,0,0);
+				return idata;
+			  break;
+			  
+			case "color":
+				var p1 = 0.99;
+				var p2 = 0.99;
+				var p3 = 0.99;
+				var er = 0; // extra red
+				var eg = 0; // extra green
+				var eb = 0; // extra blue
+				/* for(var i = 0; i < data.length; i+=4) {
+					data[i] = 0;
+				} */
+				for (var i = 0, n = data.length; i < n; i += 4) {
+					data[i]   = data[i]*p1+er; // red
+					data[i+1] = data[i+1]*p2+eg; // green
+					data[i+2] = data[i+2]*p3+eb; // blue
+				}
+
+				idata.data = data;
+				return idata;
+			  break;
+			  
+			case "brighten": 
+				// Get the picel data from the 
+				var adj = 50;
+				for (var i = 0; i < data.length; i += 4 ) {		
+					data[i] += adj;		
+					data[i+1] += adj;
+					data[i+2] += adj;
+				}
+				// Draw the data on the visible canvas
+				idata.data = data;
+				return idata;
+			break;
+			
+			case "sepia":
+				// set of sepia colors
+				var r = [0, 0, 0, 1, 1, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10, 11, 11, 12, 12, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 17, 18, 19, 19, 20, 21, 22, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 40, 41, 42, 44, 45, 47, 48, 49, 52, 54, 55, 57, 59, 60, 62, 65, 67, 69, 70, 72, 74, 77, 79, 81, 83, 86, 88, 90, 92, 94, 97, 99, 101, 103, 107, 109, 111, 112, 116, 118, 120, 124, 126, 127, 129, 133, 135, 136, 140, 142, 143, 145, 149, 150, 152, 155, 157, 159, 162, 163, 165, 167, 170, 171, 173, 176, 177, 178, 180, 183, 184, 185, 188, 189, 190, 192, 194, 195, 196, 198, 200, 201, 202, 203, 204, 206, 207, 208, 209, 211, 212, 213, 214, 215, 216, 218, 219, 219, 220, 221, 222, 223, 224, 225, 226, 227, 227, 228, 229, 229, 230, 231, 232, 232, 233, 234, 234, 235, 236, 236, 237, 238, 238, 239, 239, 240, 241, 241, 242, 242, 243, 244, 244, 245, 245, 245, 246, 247, 247, 248, 248, 249, 249, 249, 250, 251, 251, 252, 252, 252, 253, 254, 254, 254, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255],
+				    g = [0, 0, 1, 2, 2, 3, 5, 5, 6, 7, 8, 8, 10, 11, 11, 12, 13, 15, 15, 16, 17, 18, 18, 19, 21, 22, 22, 23, 24, 26, 26, 27, 28, 29, 31, 31, 32, 33, 34, 35, 35, 37, 38, 39, 40, 41, 43, 44, 44, 45, 46, 47, 48, 50, 51, 52, 53, 54, 56, 57, 58, 59, 60, 61, 63, 64, 65, 66, 67, 68, 69, 71, 72, 73, 74, 75, 76, 77, 79, 80, 81, 83, 84, 85, 86, 88, 89, 90, 92, 93, 94, 95, 96, 97, 100, 101, 102, 103, 105, 106, 107, 108, 109, 111, 113, 114, 115, 117, 118, 119, 120, 122, 123, 124, 126, 127, 128, 129, 131, 132, 133, 135, 136, 137, 138, 140, 141, 142, 144, 145, 146, 148, 149, 150, 151, 153, 154, 155, 157, 158, 159, 160, 162, 163, 164, 166, 167, 168, 169, 171, 172, 173, 174, 175, 176, 177, 178, 179, 181, 182, 183, 184, 186, 186, 187, 188, 189, 190, 192, 193, 194, 195, 195, 196, 197, 199, 200, 201, 202, 202, 203, 204, 205, 206, 207, 208, 208, 209, 210, 211, 212, 213, 214, 214, 215, 216, 217, 218, 219, 219, 220, 221, 222, 223, 223, 224, 225, 226, 226, 227, 228, 228, 229, 230, 231, 232, 232, 232, 233, 234, 235, 235, 236, 236, 237, 238, 238, 239, 239, 240, 240, 241, 242, 242, 242, 243, 244, 245, 245, 246, 246, 247, 247, 248, 249, 249, 249, 250, 251, 251, 252, 252, 252, 253, 254, 255],
+				    b = [53, 53, 53, 54, 54, 54, 55, 55, 55, 56, 57, 57, 57, 58, 58, 58, 59, 59, 59, 60, 61, 61, 61, 62, 62, 63, 63, 63, 64, 65, 65, 65, 66, 66, 67, 67, 67, 68, 69, 69, 69, 70, 70, 71, 71, 72, 73, 73, 73, 74, 74, 75, 75, 76, 77, 77, 78, 78, 79, 79, 80, 81, 81, 82, 82, 83, 83, 84, 85, 85, 86, 86, 87, 87, 88, 89, 89, 90, 90, 91, 91, 93, 93, 94, 94, 95, 95, 96, 97, 98, 98, 99, 99, 100, 101, 102, 102, 103, 104, 105, 105, 106, 106, 107, 108, 109, 109, 110, 111, 111, 112, 113, 114, 114, 115, 116, 117, 117, 118, 119, 119, 121, 121, 122, 122, 123, 124, 125, 126, 126, 127, 128, 129, 129, 130, 131, 132, 132, 133, 134, 134, 135, 136, 137, 137, 138, 139, 140, 140, 141, 142, 142, 143, 144, 145, 145, 146, 146, 148, 148, 149, 149, 150, 151, 152, 152, 153, 153, 154, 155, 156, 156, 157, 157, 158, 159, 160, 160, 161, 161, 162, 162, 163, 164, 164, 165, 165, 166, 166, 167, 168, 168, 169, 169, 170, 170, 171, 172, 172, 173, 173, 174, 174, 175, 176, 176, 177, 177, 177, 178, 178, 179, 180, 180, 181, 181, 181, 182, 182, 183, 184, 184, 184, 185, 185, 186, 186, 186, 187, 188, 188, 188, 189, 189, 189, 190, 190, 191, 191, 192, 192, 193, 193, 193, 194, 194, 194, 195, 196, 196, 196, 197, 197, 197, 198, 199];
+				// noise value
+				
+				var noise = 20;
+				
+				for (var i=0; i < data.length; i+=4) {
+
+			        // change image colors
+			        data[i] = r[data[i]];
+			        data[i+1] = g[data[i+1]];
+			        data[i+2] = b[data[i+2]];
+			        // apply noise
+
+			        if (noise > 0) {
+			            var noise = Math.round(noise - Math.random() * noise);
+			            for(var j=0; j<3; j++){
+			                var iPN = noise + data[i+j];
+			                data[i+j] = (iPN > 255) ? 255 : iPN;
+			            }
+			        }
+			    }
+				idata.data = data;
+				return idata;
+			break;
+			
+			case "invert":
+				for(var i = 0; i < data.length; i += 4) {
+			          // red
+			          data[i] = 255 - data[i];
+			          // green
+			          data[i + 1] = 255 - data[i + 1];
+			          // blue
+			          data[i + 2] = 255 - data[i + 2];
+			        }
+				idata.data = data;
+				return idata;
+			break;
+			
+			case "noise": 
+				var er = 0; // extra red
+				var eg = 0; // extra green
+				var eb = 0; // extra blue
+				var p1 = 0.99;
+				var p2 = 0.99;
+				var p3 = 0.99;
+				for (var i = 0, n = data.length; i < n; i += 4) {
+					// generating random color coefficients
+					var randColor1 = 0.6 + Math.random() * 0.4;
+					var randColor2 = 0.6 + Math.random() * 0.4;
+					var randColor3 = 0.6 + Math.random() * 0.4;
+					// assigning random colors to our data
+					data[i] = data[i]*p2*randColor1+er; // green
+					data[i+1] = data[i+1]*p2*randColor2+eg; // green
+					data[i+2] = data[i+2]*p3*randColor3+eb; // blue
+					}
+					// put image date back to context
+					idata.data = data;
+					return idata;
+			break;
+			
+			case "strips":
+				var weights = [1/9, 3/9, 3/9,
+							   1/9, 1/9, 1/9,
+							   1/9, 2/9, 1/9];
+				var side = Math.round(Math.sqrt(weights.length));
+				var halfSide = Math.floor(side / 2);
+				var dst = data;
+				// Iterate through the destination image pixels
+				var opaque=1;
+				var alphaFac = opaque ? 1 : 0;
+				for (var y = 0; y < ch; y++) {
+					for (var x = 0; x < cw; x++) {
+						var sy = y;
+						var sx = x;
+						var dstOff = (y * cw + x) * 4;
+						// Calculate the weighed sum of the source image pixels that fall under the convolution matrix
+						var r = 0, g = 0, b = 0, a = 0;
+						for (var cy = 0; cy < side; cy++) {
+							for (var cx = 0; cx < side; cx++) {
+								var scy = sy + cy - halfSide;
+								var scx = sx + cx - halfSide;
+								if (scy >= 0 && scy < ch && scx >= 0 && scx < cw) {
+									var srcOff = (scy * cw + scx) * 4;
+									var wt = weights[cy * side + cx];
+									r += data[srcOff] * wt;
+									g += data[srcOff+1] * wt;
+									b += data[srcOff+2] * wt;
+									a += data[srcOff+3] * wt;
+								}
+							}
+						}
+						dst[dstOff] = r;
+						dst[dstOff+1] = g;
+						dst[dstOff+2] = b;
+						dst[dstOff+3] = a + alphaFac * (255 - a);
+					}
+				}
+				idata.data = data;
+				return idata;
+
+			break;
+			case "tint":
+				
+				for(var i = 0; i < data.length; i+=4) {
+					var average = (data[i] + data[i+1] + data[i+2]) /3;
+					data[i] = average;
+					data[i+1] = average + 30;
+					data[i+2] = average;
+				}
+				idata.data = data;
+				return idata;
+			  break;			  
+			default:
+			  return idata;
+		}
+	}
+	var filterTimeout;
+	function draw(v,c,w,h,filter) {
+		//alert('W= '+w+', H= '+h);
+		if(v.paused || v.ended)	return false;
+		//localVideo.pause;
+		ctx.drawImage(localVideo,0,0,w,h);
+
+		if (typeof filter === 'undefined') {
+		    // variable is undefined
+		} else {
+			var idata = ctx.getImageData(0,0,w,h);
+			newdata = filterdata(idata,filter);
+			//filterdata(idata,filter);
+			ctx.putImageData(newdata,0,0);
+		}
+		//console.log(filter);
+		//localVideo.play;
+		filterTimeout = setTimeout(draw,20,localVideo,ctx,w,h,filter);
+		
+	}
+		
+	//TODO add some javaScript/JQuery logic here - controll it through webSocket messages from the server
+		
+</script>
+
+}
