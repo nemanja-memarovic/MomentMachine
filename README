@@ -1,12 +1,2 @@
-This is a very basic "Hello World" application for UsiDisplays that shows:
-
-- Application controller functionality - /app/controllers/HelloWorldController.
-- Application view functionality - /app/views/helloWorld.scala.html
-	- the view takes images form /public/images
-			 javascript from /public/javascripts
-			 css from /public/stylesheets
-	- the view supports three screen sizes: small(600x1080), big(1320x1080), and fullscreen(1920x1080)
-- Routs configuration - /conf/routs
-	- app can be called in a web browser: localhost:9000/?id=5&size=big
-- Application configuration file /conf/application.conf
-	- it holds params for the db access
+This is a Moment Machien public display application based on the Hello World template 
+by elhart (available at https://github.com/elhart/HelloWorld)
