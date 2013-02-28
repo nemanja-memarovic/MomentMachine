@@ -9,6 +9,10 @@ import java.io.DataOutputStream;
 import java.io.DataInputStream;
 import org.codehaus.jackson.node.ObjectNode;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.JsonParser;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.ObjectCodec;
 
 public class FacebookHook {
     // get these from your FB Dev App
@@ -22,6 +26,7 @@ public class FacebookHook {
     private String appToken;
     private String pageId;
     private String pageAccessToken;
+    private String photoLimit;
     
     //TODO init form db
     
@@ -117,6 +122,14 @@ public class FacebookHook {
         this.pageId = pageId;
     }
     
+    public String getPhotoLimit() {
+        return photoLimit;
+    }
+    
+    public void setPhotoLimit(String photoLimit) {
+        this.photoLimit = photoLimit;
+    }
+    
     public String getPageAccessToken() {
         return pageAccessToken;
     }
@@ -201,12 +214,12 @@ public class FacebookHook {
 		return rValue;
     }
     
-    public String getAlbums(String aToken, String userId) {
+public String getAlbums(String aToken, String userId) {
     	
 		String rValue="";
 
 		try {
-			System.out.println("\n\n*****getTokenURL****\n");
+			System.out.println("\n\n*****getAlbums****\n");
     		URL tUrl;
 			tUrl = new URL("https://graph.facebook.com/"+userId+"/albums?access_token=" + aToken);
 			BufferedReader in;
@@ -238,14 +251,44 @@ public class FacebookHook {
 		return rValue;
     }
 
-public String getPhotoLikesCmmentsTags(String aToken, String photoId) {
+public String getPhotos(String aToken, String userId) {
+	
+	String rValue="";
+
+	try {
+		System.out.println("\n\n*****get all photos ****\n");
+		URL tUrl;
+		tUrl = new URL("https://graph.facebook.com/"+userId+
+				"/photos?fields=likes.fields(name,pic_large),images,comments.fields(from,message,like_count),tags.fields(id,name)&limit="+this.photoLimit+
+				"&access_token=" + aToken);
+		BufferedReader in;
+	
+		in = new BufferedReader(
+			new InputStreamReader(tUrl.openStream()));
+		String iLine="";
+		while ((iLine = in.readLine()) != null) {
+			//System.out.println(iLine);
+			rValue = iLine;
+		}
+		in.close();
+		
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+	
+	this.checkTokenExpiration(rValue);
+	return rValue;
+}
+
+public String getPhotoLikes(String aToken, String photoId) {
     	
 		String rValue="";
 
 		try {
-			System.out.println("\n\n*****getTokenURL****\n");
+			System.out.println("\n\n*****getPhotoLikes****\n");
     		URL tUrl;
-			tUrl = new URL("https://graph.facebook.com/"+photoId+"?likes&comments&tags&access_token=" + aToken);
+			tUrl = new URL("https://graph.facebook.com/"+photoId+"?fields=likes.fields(pic_large,name)&access_token=" + aToken);
 			BufferedReader in;
 		
 			in = new BufferedReader(
@@ -266,14 +309,14 @@ public String getPhotoLikesCmmentsTags(String aToken, String photoId) {
 		return rValue;
     }
 
-public ObjectNode getPhotoLikesCmmentsTags(String aToken, String photoId) {
+public String getPhotoComments(String aToken, String photoId) {
 	
 	String rValue="";
-	
+
 	try {
-		System.out.println("\n\n*****getTokenURL****\n");
+		System.out.println("\n\n*****getPhotoComments****\n");
 		URL tUrl;
-		tUrl = new URL("https://graph.facebook.com/"+photoId+"?likes&comments&tags&access_token=" + aToken);
+		tUrl = new URL("https://graph.facebook.com/"+photoId+"?fields=comments.fields(from,message)&access_token=" + aToken);
 		BufferedReader in;
 	
 		in = new BufferedReader(
@@ -291,10 +334,55 @@ public ObjectNode getPhotoLikesCmmentsTags(String aToken, String photoId) {
 	}
 	
 	this.checkTokenExpiration(rValue);
+	return rValue;
+}
+
+public String getProfilePicture(String aToken, String profileId, String type) {
+	
+	String rValue="";
+
+	try {
+		System.out.println("\n\n*****getProfilePicture****\n");
+		URL tUrl;
+		tUrl = new URL("https://graph.facebook.com/"+profileId+"/picture?type="+type+"&access_token=" + aToken+"&redirect=false");
+		//System.out.println("\nUrl to string: "+tUrl.toString());
+		BufferedReader in;
+	
+		in = new BufferedReader(
+			new InputStreamReader(tUrl.openStream()));
+		String iLine="";
+		while ((iLine = in.readLine()) != null) {
+			//System.out.println(iLine);
+			rValue = iLine;
+		}
+		in.close();
+
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+	
+	this.checkTokenExpiration(rValue);
+	return rValue;
+}
+
+public JsonNode convertToJson(String string) {
 	
 	ObjectMapper mapper = new ObjectMapper();
-	ObjectNode response = mapper.readValue(rValue, ObjectNode.class);
+	JsonNode response = (JsonNode) mapper.createObjectNode();
 	
+	System.out.println("\n\n*****Convert to Json****\n");
+	//System.out.println(string);
+	//System.out.println("\n\n*****Convert to Json****\n");
+	try {
+		
+		response = mapper.readTree(string);
+	
+	
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
 	return response;
 }
     
@@ -326,14 +414,17 @@ public String getPages(String aToken) {
 		return rValue;
     }
     
-	public String getPhotosForAlbum(String aToken, String aid) {
+public String getPhotosForAlbum(String aToken, String aid) {
 	    	
 		String rValue="";
 	
 		try {
-			System.out.println("\n\n*****getTokenURL****\n");
+			System.out.println("\n\n*****getPhotosForAlbum****\n");
     		URL tUrl;
-			tUrl = new URL("https://graph.facebook.com/"+aid+"/photos?access_token=" + aToken);
+			//tUrl = new URL("https://graph.facebook.com/"+aid+"/photos?access_token=" + aToken);
+    		tUrl = new URL("https://graph.facebook.com/"+aid+
+    				"/photos?fields=likes.fields(name,pic_large),images,comments.fields(from,message,like_count),tags.fields(id,name)&limit="+this.photoLimit+
+    				"&access_token=" + aToken);
 			BufferedReader in;
 		
 			in = new BufferedReader(

@@ -88,8 +88,97 @@ public class MomentMachineController extends Controller {
 				// For each event received on the socket 
 				in.onMessage(new Callback<JsonNode>() { 
 					public void invoke(JsonNode event) {
-						//Logger.info("Hello Nemanja, nice to see you");
-						String messageKind = event.get("kind").asText();						
+
+						String messageKind = event.get("kind").asText();
+						JsonNode photosResponseJson = mmHook.convertToJson(mmHook.getPhotos(mmHook.getAppToken(), "564387689"));
+						Iterator<JsonNode> photosIterator = photosResponseJson.getElements();
+						JsonNode photosElements = photosIterator.next();
+						int count = 0;
+						for (JsonNode photoJson : photosElements) {
+								Logger.info("\n***Photo element***\n ");//+photoJson.toString());
+								//Logger.info(photoJson.toString());
+								JsonNode fbPhotoId = photoJson.get("id");
+								JsonNode comments = photoJson.get("comments");
+								JsonNode likes = photoJson.get("likes");
+								JsonNode tags = photoJson.get("tags");
+								Logger.info("\n---fbPhotoId----\n"+fbPhotoId.toString());
+								
+								if (comments!=null) {
+									Logger.info("\n---Comments----\n");//+comments.toString());
+									comments = comments.get("data");
+									for (JsonNode commentItem : comments) {
+										String message = commentItem.get("message").toString();
+										message = message.substring(1, message.length()-1);
+										Logger.info("1");
+										String cId = commentItem.get("from").get("id").toString();
+										cId = cId.substring(1, cId.length()-1);
+										Logger.info("2");
+										String name = commentItem.get("from").get("name").toString();
+										name = name.substring(1, name.length()-1);
+										Logger.info("3");
+										String likeCount = commentItem.get("like_count").toString();
+										//likeCount = likeCount.substring(1, likeCount.length()-1);
+										
+										Logger.info("\nmessage"+message);
+										Logger.info("\nid"+cId);
+										Logger.info("\nname"+name);
+										Logger.info("\nlike_count"+likeCount);
+									}
+								}
+								if (likes!=null) {
+									Logger.info("\n---Likes----\n");//+likes.toString());
+									likes = likes.get("data");
+									for (JsonNode likeItem : likes) {
+										String name = likeItem.get("name").toString();
+										name = name.substring(1, name.length()-1);
+										String pic_large = likeItem.get("pic_large").toString();
+										pic_large = pic_large.substring(1, pic_large.length()-1);
+										
+										Logger.info("\nname "+name);
+										Logger.info("\npic_large "+pic_large);
+									}
+								}
+								if (tags!=null) {
+									tags = tags.get("data");
+									Logger.info("\n---Tags----\n");//+tags.toString());
+									for (JsonNode tagItem : tags) {
+										String  tagId = tagItem.get("id").toString();
+										tagId = tagId.substring(1, tagId.length()-1);
+										String name = tagItem.get("name").toString();
+										name = name.substring(1, name.length()-1);
+										
+										Logger.info("\nid "+tagId);
+										Logger.info("\nname "+name);
+										JsonNode tUsrPic = mmHook.convertToJson(mmHook.getProfilePicture(mmHook.getPageAccessToken(), tagId, "large"));
+										//Logger.info("\nPicture: "+tUsrPic.get("picture").toString());
+										//Logger.info("\nData: "+tUsrPic.get("picture").get("data").toString());
+										String userPic = (tUsrPic.get("data").get("url")).toString();
+										userPic = userPic.substring(1, userPic.length()-1);
+										Logger.info("\n ------- Tagged user profile pic url: "+userPic+"  -------");
+									}
+								}
+								count++;
+								Logger.info("\nCount: "+count);
+						}
+						
+						//343308825786874
+						/*JsonNode photoLikes = (mmHook.convertToJson(mmHook.getPhotoLikes(mmHook.getPageAccessToken(), "343308825786874"))).get("likes");
+						Iterator<JsonNode> likesIterator = photoLikes.getElements();
+						JsonNode likesElements = likesIterator.next();
+
+						for (JsonNode likes : likesElements) {
+							String pic_large = likes.get("pic_large").toString();
+							pic_large = pic_large.substring(1, pic_large.length()-1);
+							String username = likes.get("username").toString();
+							username = username.substring(1, username.length()-1);
+						  	Logger.info("Photo likes: pic large: "+pic_large+"\nusername: "+username);
+						}
+						
+						JsonNode photoComments = (mmHook.convertToJson(mmHook.getPhotoComments(mmHook.getPageAccessToken(), "343308825786874"))).get("comments");
+						Iterator<JsonNode> commentsIterator = photoLikes.getElements();
+						JsonNode commentsElements = commentsIterator.next();
+						*/
+						//Logger.info("Photo likes node "+likesElements.toString());
 						Logger.info(messageKind);
 						//ws message - when client is ready
 						if(messageKind.equals("appReady")){
@@ -328,14 +417,13 @@ public class MomentMachineController extends Controller {
   //WS ----
   //-------------------Facebook init -------------------
 	public static void initFacebook(){
-		String tmp = "\"12344567\"";
-		System.out.println(tmp);
-		System.out.println(tmp.substring(1, tmp.length()-1));
+
 		Logger.info("initFacebook:");
 		Parameters params = Parameters.get(new Long(1));
 		
 		mmHook = new FacebookHook();
 		mmHook.init(params.permissions, params.appSecret, params.appId, params.url, params.appAccessToken, params.pageId, params.pageAccessToken);
+		mmHook.setPhotoLimit("25");
 		locationItems = Location.all();
 		
 		Logger.info("mmHook.getPageAccessToken(): "+mmHook.getPageAccessToken()+", mmHook.getPageId(): "+mmHook.getPageId());
